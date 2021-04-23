@@ -3,10 +3,10 @@
 A simple bot that automatically joins giveaways on [steamgifts](steamgifts.com).
 Not in any way affiliated.
 
-##How to use
+## How to use
 Simply log into your Steam account on steamgifts.com and export the cookies, then just paste the PHPSESSID value into the config.ini file. After that you are ready to start the bot! 
 
-##config.ini
+## config.ini
 Before you will be able to use the bot, you have change some values in the config.ini file.  
 
 The only line you HAVE to change is the first one. Just paste your PHPSESSID value after the `cookie =`, after that you are good to got, or you can adjust other things to your liking.
