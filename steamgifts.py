@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 import requests
 
 CONFIG_DEFAULT = {
-    'cookie': 'HIER HER KOPIEREN',
+    'cookie': 'COPY PHPSESSID HERE',
     'min_points': 1,
     'min_points_on_page_refresh': 6,
     'refresh_sleep': 180,
@@ -35,7 +35,7 @@ def conf_read():
         print("> Please paste the cookie \'PHPSESSID\' from steamgifts.com into the config.ini file!")
         input()
         sys.exit(0)
-    elif not comp_this_because_fuck_python_on_linux(CONFIG_DEFAULT, config['STEAMGIFTS']):
+    elif not comp_lists(CONFIG_DEFAULT, config['STEAMGIFTS']):
         conf_init()
         print("> Error retrieving cookie PHPSESSID, please try pasting it again!")
         input()
@@ -57,7 +57,7 @@ def conf_read():
         sys.exit(0)
 
 
-def comp_this_because_fuck_python_on_linux(list1, list2):
+def comp_lists(list1, list2):
     for x in list1.keys():
         if x not in list2.keys():
             return False
@@ -100,7 +100,7 @@ def get_content():
 
 def check():
     """ Loops through all the giveaways"""
-    global game_name
+    global title
     global entered
 
     print("> Current points: " + str(points))
@@ -115,14 +115,16 @@ def check():
                 lambda tag: tag.name == 'div' and tag.get('class') == ['giveaway__row-inner-wrap'])
 
             for item in gifts_list:
-                if verbosity_level > 3: print("[DEBUG] Checking if points less than min_points {" + str(points) + " < " + str(min_points) + "}")
+                if verbosity_level > 3: print(
+                    "[DEBUG] Checking if points less than min_points {" + str(points) + " < " + str(min_points) + "}")
                 if int(points) < int(min_points):
                     print("> Sleeping to get " + min_points + " points")
-                    sleep((int(min_points) - int(points))*150)
+                    sleep((int(min_points) - int(points)) * 150)
                     check()
                     break
 
-                if verbosity_level > 3: print("[DEBUG] Finding all 'span' elements with class 'giveaway__heading__thin'")
+                if verbosity_level > 3: print(
+                    "[DEBUG] Finding all 'span' elements with class 'giveaway__heading__thin'")
 
                 giveaway_cost = item.find_all('span', {'class': 'giveaway__heading__thin'})
 
@@ -135,15 +137,18 @@ def check():
                     if verbosity_level > 3:
                         print("[DEBUG] Cost found: " + giveaway_cost)
 
-                if verbosity_level > 3: print("[DEBUG] Getting name of the game from current giveaway, encoding in UTF-8")
-                game_name = item.find('a', {'class': 'giveaway__heading__name'}).text.encode('utf-8')
+                if verbosity_level > 3: print(
+                    "[DEBUG] Getting name of the game from current giveaway, encoding in UTF-8")
+                title = item.find('a', {'class': 'giveaway__heading__name'}).text.encode('utf-8')
                 if verbosity_level > 3: print("[DEBUG] Getting ID from current giveaway")
                 giveaway_id = item.find('a', {'class': 'giveaway__heading__name'})['href'].split('/')[2]
                 if giveaway_id not in entered:
                     if verbosity_level > 3:
-                        print("[DEBUG] Checks if giveaway__row-inner-wrap is-faded is not None -> giveaway already entered")
+                        print(
+                            "[DEBUG] Checks if giveaway__row-inner-wrap is-faded is not None -> giveaway already entered")
                     if item.find('div', {'class': 'giveaway__row-inner-wrap is-faded'}) is not None:
-                        if verbosity_level > 3: print("[DEBUG] Giveaway already entered -> appending ID to entered list")
+                        if verbosity_level > 3: print(
+                            "[DEBUG] Giveaway already entered -> appending ID to entered list")
                         entered.append(giveaway_id)
                         continue
                     else:
@@ -152,7 +157,8 @@ def check():
                     if verbosity_level > 3: print("[DEBUG] Giveaway ignored by config (min_points) ")
                     continue
                 if (int(points) - int(giveaway_cost)) < 0 and (giveaway_id not in entered):
-                    print("[-] Not enough points to enter: " + str(game_name, 'utf-8') + " (" + str(giveaway_cost) + ")")
+                    print(
+                        "[-] Not enough points to enter: " + str(title, 'utf-8') + " (" + str(giveaway_cost) + ")")
                     sleep(1)
                     continue
                 elif (int(points) - int(giveaway_cost)) > 0:
@@ -164,7 +170,7 @@ def check():
 
     if int(points) < int(min_points_on_page_refresh):
         print("> Sleeping to get at least " + str(min_points_on_page_refresh) + " points")
-        sleep((int(min_points_on_page_refresh)-int(points))*150)
+        sleep((int(min_points_on_page_refresh) - int(points)) * 150)
     else:
         print("> No more giveaways. Sleeping for " + str(datetime.timedelta(seconds=int(refresh_sleep))) + "...")
         sleep(int(refresh_sleep))
@@ -178,14 +184,15 @@ def enter_giveaway(item, cost):
     user = item.find('a', {'class': 'giveaway__username'})
     entries = (((item.find('div', {'class': 'giveaway__links'})).find_all('a')[0]).find('span'))
 
-    entry = requests.post('https://www.steamgifts.com/ajax.php', data={'xsrf_token': xsrf_token, 'do': 'entry_insert', 'code': giveaway_id}, cookies=kekse)
+    entry = requests.post('https://www.steamgifts.com/ajax.php',
+                          data={'xsrf_token': xsrf_token, 'do': 'entry_insert', 'code': giveaway_id}, cookies=kekse)
     json_data = json.loads(entry.text)
 
     get_content()
 
     if json_data['type'] == 'success':
         print("[+] Entered new giveaway [+]")
-        print("Game: " + game_name.decode("utf-8"))
+        print("Game: " + title.decode("utf-8"))
         print("Giveaway cost: " + str(cost))
         print("Points left: " + str(points))
         print("Created: " + str(timestamps[1].text) + " ago by user " + str(user.text))
@@ -211,7 +218,6 @@ if __name__ == '__main__':
     print("> Use at your own risk!")
     sleep(5)
     os.system('cls')
-    
 
     conf_read()
     get_content()
