@@ -35,7 +35,9 @@ refresh_sleep = 180
 ```
 Defines how many pages deep the bot should check giveaways. 
 ```
+...
 number_of_pages = 5
+...
 ```
 Defines the minimum cost to join a giveaway, raise this value to avoid winning cheap/crappy games.
 ```
