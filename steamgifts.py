@@ -16,7 +16,8 @@ CONFIG_DEFAULT = {
     'refresh_sleep': 180,
     'number_of_pages': 5,
     'min_giveaway_cost': 1,
-    'verbosity_level': 1
+    'verbosity_level': 1,
+    'query': ''
 }
 
 
@@ -39,9 +40,9 @@ def conf_read():
         conf_init()
         print("> Error retrieving cookie PHPSESSID, please try pasting it again!")
         input()
-        sys.exit(0)
+        sys.exit(1)
 
-    global min_points, kekse, min_points_on_page_refresh, refresh_sleep, pages, min_cost
+    global min_points, kekse, min_points_on_page_refresh, refresh_sleep, pages, min_cost, query
     try:
         min_points = config['STEAMGIFTS']['min_points']
         min_points_on_page_refresh = config['STEAMGIFTS']['min_points_on_page_refresh']
@@ -50,6 +51,7 @@ def conf_read():
         min_cost = config['STEAMGIFTS']['min_giveaway_cost']
         verbosity_level = int(config['STEAMGIFTS']['verbosity_level'])
         kekse = {'PHPSESSID': config['STEAMGIFTS']['cookie']}
+        query = config['STEAMGIFTS']['query']
     except:
         print("> Fatal error parsing config.ini, please check for formatting errors, or try generating a new one!")
         if verbosity_level > 2: print("> Awaiting user input to exit program")
@@ -108,7 +110,10 @@ def check():
     n = 1
     while n <= int(pages):
         print("> Loading giveaways page " + str(n) + "...")
-        soup = get_soup_from_page('https://www.steamgifts.com/giveaways/search?page=' + str(n))
+        soup = get_soup_from_page('https://www.steamgifts.com/giveaways/search?page=' + str(n) + '&' + query)
+
+        if soup.find_all('div', text='No results were found.'):
+            break
 
         try:
             gifts_list = soup.find_all(
