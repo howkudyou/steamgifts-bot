@@ -42,7 +42,7 @@ def conf_read():
         input()
         sys.exit(1)
 
-    global min_points, kekse, min_points_on_page_refresh, refresh_sleep, pages, min_cost, query
+    global min_points, kekse, min_points_on_page_refresh, refresh_sleep, pages, min_cost, queries
     try:
         min_points = config['STEAMGIFTS']['min_points']
         min_points_on_page_refresh = config['STEAMGIFTS']['min_points_on_page_refresh']
@@ -51,7 +51,7 @@ def conf_read():
         min_cost = config['STEAMGIFTS']['min_giveaway_cost']
         verbosity_level = int(config['STEAMGIFTS']['verbosity_level'])
         kekse = {'PHPSESSID': config['STEAMGIFTS']['cookie']}
-        query = config['STEAMGIFTS']['query']
+        queries = config['STEAMGIFTS']['query'].split(',')
     except:
         print("> Fatal error parsing config.ini, please check for formatting errors, or try generating a new one!")
         if verbosity_level > 2: print("> Awaiting user input to exit program")
@@ -100,7 +100,7 @@ def get_content():
         sys.exit(0)
 
 
-def check():
+def check(query, last=False):
     """ Loops through all the giveaways"""
     global title
     global entered
@@ -125,7 +125,7 @@ def check():
                 if int(points) < int(min_points):
                     print("> Sleeping to get " + min_points + " points")
                     sleep((int(min_points) - int(points)) * 150)
-                    check()
+                    check(query)
                     break
 
                 if verbosity_level > 3: print(
@@ -171,16 +171,16 @@ def check():
             n += 1
         except AttributeError:
             print("> Error processing giveaways!")
-            check()
+            check(query)
 
     if int(points) < int(min_points_on_page_refresh):
         print("> Sleeping to get at least " + str(min_points_on_page_refresh) + " points")
         sleep((int(min_points_on_page_refresh) - int(points)) * 150)
-    else:
-        print("> No more giveaways. Sleeping for " + str(datetime.timedelta(seconds=int(refresh_sleep))) + "...")
+    elif last:
+        print("> No more giveaways. Sleeping for " + str(
+            datetime.timedelta(seconds=int(refresh_sleep))) + "...")
         sleep(int(refresh_sleep))
     get_content()
-    check()
 
 
 def enter_giveaway(item, cost):
@@ -226,4 +226,13 @@ if __name__ == '__main__':
 
     conf_read()
     get_content()
-    check()
+    if queries:
+        while True:
+            for q in queries:
+                if q == queries[-1]:
+                    check(q, True)
+                else:
+                    check(q)
+    else:
+        while True:
+            check('', True)
