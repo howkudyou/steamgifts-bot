@@ -3,6 +3,7 @@ import configparser
 import json
 import datetime
 import os
+import logging
 from time import sleep
 from random import randint
 from requests import RequestException
@@ -15,10 +16,24 @@ CONFIG_DEFAULT = {
     'min_points_on_page_refresh': 6,
     'refresh_sleep': 180,
     'number_of_pages': 5,
-    'min_giveaway_cost': 1,
+    'min_giveaway_cost': 0,
     'verbosity_level': 1,
     'query': ''
 }
+
+log = None
+verbosity_level = 1
+min_points_on_page_refresh = 6
+refresh_sleep = 180
+pages = 5
+min_points = 1
+min_cost = 0
+kekse = ''
+queries = ''
+xsrf_token = ''
+points = 0
+entered = []
+title = ''
 
 
 def conf_read():
@@ -26,7 +41,7 @@ def conf_read():
     global verbosity_level
 
     def conf_init():
-        print("> Initializing DEFAULT_CONFIG")
+        log.info('Initializing DEFAULT_CONFIG')
         config['STEAMGIFTS'] = CONFIG_DEFAULT
         with open('config.ini', 'w') as configfile: config.write(configfile)
         print("> Created file config.ini")
@@ -38,7 +53,7 @@ def conf_read():
         sys.exit(0)
     elif not comp_lists(CONFIG_DEFAULT, config['STEAMGIFTS']):
         conf_init()
-        print("> Error retrieving cookie PHPSESSID, please try pasting it again!")
+        log.error('Error retrieving cookie PHPSESSID, please try pasting it again!')
         input()
         sys.exit(1)
 
@@ -53,8 +68,8 @@ def conf_read():
         kekse = {'PHPSESSID': config['STEAMGIFTS']['cookie']}
         queries = config['STEAMGIFTS']['query'].split(',')
     except:
-        print("> Fatal error parsing config.ini, please check for formatting errors, or try generating a new one!")
-        if verbosity_level > 2: print("> Awaiting user input to exit program")
+        log.critical('Fatal error parsing config.ini, please check for formatting errors, or try generating a new one!')
+        log.debug('Awaiting user input to exit program')
         input()
         sys.exit(0)
 
@@ -67,34 +82,32 @@ def comp_lists(list1, list2):
 
 
 def get_soup_from_page(url):
-    if verbosity_level > 1: print("> Loading request for " + str(url))
+    log.info('Loading request for " + str(url)')
     r = requests.get(url, cookies=kekse)
-    if verbosity_level > 2: print("> Trying to get html.parser soup for")
+    log.debug('Trying to get html.parser soup for')
     soup = BeautifulSoup(r.text, 'html.parser')
     return soup
 
 
 def get_content():
-    if verbosity_level > 1: print("> Getting steamgifts content")
-    """
-    Thanks to my great friend Stackoverflow
-    """
+    log.info('Getting content from steamgifts page')
     global xsrf_token, points
 
     try:
-        if verbosity_level > 2: print("> Grabbing soup for steamgifts.com")
+        log.debug('Grabbing soup for steamgifts.com')
         soup = get_soup_from_page('https://www.steamgifts.com')
-        if verbosity_level > 2: print("> Looking for xsrf token in soup content")
+        log.debug('Looking for xsrf token in soup content')
         xsrf_token = soup.find('input', {'name': 'xsrf_token'})['value']
-        if verbosity_level > 2: print("> Filtering soup to get current points")
+        log.debug('Filtering soup to get current points')
         points = soup.find('span', {'class': 'nav__points'}).text
     except RequestException:
-        print("> Error connecting to steamgifts.com!")
+        print("> ")
+        log.error('Error connecting to steamgifts.com!')
         print("> Waiting 2 minutes and trying to reconnect...")
         sleep(120)
         get_content()
     except TypeError:
-        print("> Invalid cookie! Aborting!")
+        log.critical('Invalid cookie! Aborting!')
         if verbosity_level > 2: print("> Awaiting user input to exit program")
         input()
         sys.exit(0)
@@ -120,16 +133,14 @@ def check(query, last=False):
                 lambda tag: tag.name == 'div' and tag.get('class') == ['giveaway__row-inner-wrap'])
 
             for item in gifts_list:
-                if verbosity_level > 3: print(
-                    "[DEBUG] Checking if points less than min_points {" + str(points) + " < " + str(min_points) + "}")
+                log.debug('Checking if points less than min_points {' + str(points) + ' < ' + str(min_points) + '}')
                 if int(points) < int(min_points):
-                    print("> Sleeping to get " + min_points + " points")
+                    print("> Sleeping to get " + str(min_points) + " points")
                     sleep((int(min_points) - int(points)) * 150)
                     check(query)
                     break
 
-                if verbosity_level > 3: print(
-                    "[DEBUG] Finding all 'span' elements with class 'giveaway__heading__thin'")
+                log.debug("[DEBUG] Finding all 'span' elements with class 'giveaway__heading__thin'")
 
                 giveaway_cost = item.find_all('span', {'class': 'giveaway__heading__thin'})
 
@@ -137,29 +148,24 @@ def check(query, last=False):
                 for last_div in giveaway_cost:
                     pass
                 if last_div:
-                    if verbosity_level > 3: print("[DEBUG] Getting giveaway cost from last_div")
+                    log.debug('Getting giveaway cost from last_div')
                     giveaway_cost = last_div.getText().replace('(', '').replace(')', '').replace('P', '')
-                    if verbosity_level > 3:
-                        print("[DEBUG] Cost found: " + giveaway_cost)
+                    log.debug('Cost found: ' + giveaway_cost)
 
-                if verbosity_level > 3: print(
-                    "[DEBUG] Getting name of the game from current giveaway, encoding in UTF-8")
+                log.debug('Getting name of the game from current giveaway, encoding in UTF-8')
                 title = item.find('a', {'class': 'giveaway__heading__name'}).text.encode('utf-8')
-                if verbosity_level > 3: print("[DEBUG] Getting ID from current giveaway")
+                log.debug('Getting ID from current giveaway')
                 giveaway_id = item.find('a', {'class': 'giveaway__heading__name'})['href'].split('/')[2]
                 if giveaway_id not in entered:
-                    if verbosity_level > 3:
-                        print(
-                            "[DEBUG] Checks if giveaway__row-inner-wrap is-faded is not None -> giveaway already entered")
+                    log.debug('Checks if giveaway__row-inner-wrap is-faded is not None -> giveaway already entered')
                     if item.find('div', {'class': 'giveaway__row-inner-wrap is-faded'}) is not None:
-                        if verbosity_level > 3: print(
-                            "[DEBUG] Giveaway already entered -> appending ID to entered list")
+                        log.debug('Giveaway already entered -> appending ID to entered list')
                         entered.append(giveaway_id)
                         continue
                     else:
-                        if verbosity_level > 3: print("[DEBUG] Giveaway not entered, continuing")
+                        log.debug('Giveaway not entered, continuing')
                 if int(giveaway_cost) < int(min_cost):
-                    if verbosity_level > 3: print("[DEBUG] Giveaway ignored by config (min_points) ")
+                    log.info('Giveaway ignored by config (min_points)')
                     continue
                 if (int(points) - int(giveaway_cost)) < 0 and (giveaway_id not in entered):
                     print(
@@ -170,7 +176,7 @@ def check(query, last=False):
                     enter_giveaway(item, giveaway_cost)
             n += 1
         except AttributeError:
-            print("> Error processing giveaways!")
+            log.error('Error processing giveaways!')
             check(query)
 
     if int(points) < int(min_points_on_page_refresh):
@@ -206,10 +212,13 @@ def enter_giveaway(item, cost):
         print("[+] -------------------- [+]")
         entered.append(giveaway_id)
         sleep(randint(10, 30))
+    elif json_data['type'] == 'error':
+        log.error(f'Fatal Error occurred retrieving request, returned "{json_data["msg"]}"')
+        input()
+        sys.exit(-1)
 
 
 if __name__ == '__main__':
-    entered = []
     print(" _           _ _______       _                      ")
     print("| |         | (_) ___ \     | |                     ")
     print("| |     ___ | |_| |_/ / ___ | |_ ______ _ __   __ _ ")
@@ -225,6 +234,20 @@ if __name__ == '__main__':
     os.system('cls')
 
     conf_read()
+
+    logging.basicConfig()
+    logging.getLogger('SG-BOT')
+    log = logging.getLogger('SG-BOT')
+
+    if verbosity_level == 0:
+        log.setLevel(logging.ERROR)
+    elif verbosity_level == 1:
+        log.setLevel(logging.WARNING)
+    elif verbosity_level == 2:
+        log.setLevel(logging.INFO)
+    elif verbosity_level >= 3:
+        log.setLevel(logging.DEBUG)
+
     get_content()
     if queries:
         while True:
